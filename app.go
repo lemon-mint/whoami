@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/lemon-mint/envaddr"
+	"github.com/lemon-mint/godotenv"
 )
 
 // Units.
@@ -35,17 +37,16 @@ var (
 	cert    string
 	key     string
 	ca      string
-	port    string
 	name    string
 	verbose bool
 )
 
 func init() {
+	godotenv.Load()
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 	flag.StringVar(&cert, "cert", "", "give me a certificate")
 	flag.StringVar(&key, "key", "", "give me a key")
 	flag.StringVar(&ca, "cacert", "", "give me a CA chain, enforces mutual TLS")
-	flag.StringVar(&port, "port", getEnv("WHOAMI_PORT_NUMBER", "80"), "give me a port number")
 	flag.StringVar(&name, "name", os.Getenv("WHOAMI_NAME"), "give me a name")
 }
 
@@ -69,13 +70,13 @@ func main() {
 	mux.Handle("/", handle(whoamiHandler, verbose))
 
 	if cert == "" || key == "" {
-		log.Printf("Starting up on port %s", port)
+		log.Printf("Starting up on %s", envaddr.Get(":80"))
 
-		log.Fatal(http.ListenAndServe(":"+port, mux))
+		log.Fatal(http.ListenAndServe(envaddr.Get(":80"), mux))
 	}
 
 	server := &http.Server{
-		Addr:    ":" + port,
+		Addr:    envaddr.Get(":443"),
 		Handler: mux,
 	}
 
@@ -83,7 +84,7 @@ func main() {
 		server.TLSConfig = setupMutualTLS(ca)
 	}
 
-	log.Printf("Starting up with TLS on port %s", port)
+	log.Printf("Starting up with TLS on port %s", envaddr.Get(":443"))
 
 	log.Fatal(server.ListenAndServeTLS(cert, key))
 }
